@@ -1,0 +1,20 @@
+{
+  "name": "arcadex-data-collection",
+  "version": "1.0.0",
+  "description": "Real-time cryptocurrency price data collection and volatility calculation service for ArcadeX",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test:buffer": "node tests/testPriceBuffer.js",
+    "test:volatility": "node tests/testVolatilityCalc.js",
+    "test:schema": "node services/database/testSchema.js"
+  },
+  "keywords": ["solana", "cryptocurrency", "data-collection", "volatility", "options"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "pg": "^8.11.0"
+  }
+}
