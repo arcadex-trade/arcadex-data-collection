@@ -2,6 +2,7 @@ import axios from 'axios';
 import { config } from '../config.js';
 import { savePriceData, savePriceTick } from './database/schema.js';
 import PriceBuffer, { TIMEFRAMES } from './priceBuffer.js';
+import { VolatilityTracker, VOLATILITY_TIMEFRAMES } from './volatilityCalc.js';
 
 const TOKENS = {
   WIF: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
@@ -20,8 +21,17 @@ class PriceFetcher {
     this.lastDexScreenerFetch = 0;
     // Initialize price buffers - one per token for tracking highs/lows/volatility
     this.priceBuffers = {};
+    // Initialize volatility trackers - one per token per timeframe
+    this.volatilityTrackers = {};
     Object.keys(TOKENS).forEach(symbol => {
       this.priceBuffers[symbol] = new PriceBuffer();
+      this.volatilityTrackers[symbol] = {
+        [VOLATILITY_TIMEFRAMES.FIVE_MINUTES]: new VolatilityTracker(VOLATILITY_TIMEFRAMES.FIVE_MINUTES),
+        [VOLATILITY_TIMEFRAMES.ONE_HOUR]: new VolatilityTracker(VOLATILITY_TIMEFRAMES.ONE_HOUR),
+        [VOLATILITY_TIMEFRAMES.SIX_HOURS]: new VolatilityTracker(VOLATILITY_TIMEFRAMES.SIX_HOURS),
+        [VOLATILITY_TIMEFRAMES.TWENTY_FOUR_HOURS]: new VolatilityTracker(VOLATILITY_TIMEFRAMES.TWENTY_FOUR_HOURS),
+        [VOLATILITY_TIMEFRAMES.SEVEN_DAYS]: new VolatilityTracker(VOLATILITY_TIMEFRAMES.SEVEN_DAYS)
+      };
       console.log(`Initialized price buffer for ${symbol}`);
     });
   }
@@ -198,6 +208,41 @@ class PriceFetcher {
       // Get 7-day price change
       const change_7d = typeof buffer.getChange7d === 'function' ? buffer.getChange7d() : null;
 
+      // Calculate volatility for each timeframe
+      const bufferSize = buffer.getPrices().length;
+      console.log(`Buffer size for ${symbol}:`, bufferSize);
+
+      // Get prices for volatility calculation
+      const prices = buffer.getPrices();
+      const currentPrice = this.priceData[symbol]?.price || prices[prices.length - 1]?.price;
+      const previousPrice = prices.length > 1 ? prices[prices.length - 2]?.price : null;
+
+      // Initialize trackers if needed and update with new price
+      const trackers = this.volatilityTrackers[symbol];
+      if (currentPrice && previousPrice) {
+        Object.values(trackers).forEach(tracker => {
+          if (!tracker.isInitialized() && prices.length >= 2) {
+            tracker.initialize(prices);
+          }
+          tracker.addPrice(currentPrice, currentTimestamp, previousPrice);
+        });
+      }
+
+      // Calculate volatility for each timeframe
+      const volatility_5m = trackers[VOLATILITY_TIMEFRAMES.FIVE_MINUTES].getVolatility();
+      const volatility_1h = trackers[VOLATILITY_TIMEFRAMES.ONE_HOUR].getVolatility();
+      const volatility_6h = trackers[VOLATILITY_TIMEFRAMES.SIX_HOURS].getVolatility();
+      const volatility_24h = trackers[VOLATILITY_TIMEFRAMES.TWENTY_FOUR_HOURS].getVolatility();
+      const volatility_7d = trackers[VOLATILITY_TIMEFRAMES.SEVEN_DAYS].getVolatility();
+
+      console.log(`Volatility for ${symbol}:`, {
+        '5m': volatility_5m,
+        '1h': volatility_1h,
+        '6h': volatility_6h,
+        '24h': volatility_24h,
+        '7d': volatility_7d
+      });
+
       // Store all metrics for this token
       bufferMetrics[symbol] = {
         high_5m, low_5m, range_5m,
@@ -205,7 +250,12 @@ class PriceFetcher {
         high_6h, low_6h, range_6h,
         high_24h, low_24h, range_24h,
         high_7d, low_7d, range_7d,
-        change_7d
+        change_7d,
+        volatility_5m,
+        volatility_1h,
+        volatility_6h,
+        volatility_24h,
+        volatility_7d
       };
 
       console.log(`Calculated metrics for ${symbol}: 24h high=$${high_24h?.toFixed(4)}, low=$${low_24h?.toFixed(4)}`);
