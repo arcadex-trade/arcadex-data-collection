@@ -97,7 +97,12 @@ async function savePriceData(
   high_7d,
   low_7d,
   range_7d,
-  change_7d
+  change_7d,
+  volatility_5m,
+  volatility_1h,
+  volatility_6h,
+  volatility_24h,
+  volatility_7d
 ) {
   try {
     const result = await pool.query(
