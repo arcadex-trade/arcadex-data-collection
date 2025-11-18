@@ -117,9 +117,10 @@ async function savePriceData(
         high_24h, low_24h, range_24h,
         high_7d, low_7d, range_7d,
         change_7d,
+        volatility_5m, volatility_1h, volatility_6h, volatility_24h, volatility_7d,
         timestamp
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, NOW())
       ON CONFLICT (token)
       DO UPDATE SET
         price = EXCLUDED.price,
@@ -149,6 +150,11 @@ async function savePriceData(
         low_7d = EXCLUDED.low_7d,
         range_7d = EXCLUDED.range_7d,
         change_7d = EXCLUDED.change_7d,
+        volatility_5m = EXCLUDED.volatility_5m,
+        volatility_1h = EXCLUDED.volatility_1h,
+        volatility_6h = EXCLUDED.volatility_6h,
+        volatility_24h = EXCLUDED.volatility_24h,
+        volatility_7d = EXCLUDED.volatility_7d,
         timestamp = EXCLUDED.timestamp
       RETURNING *;`,
       [
@@ -161,7 +167,8 @@ async function savePriceData(
         high_6h, low_6h, range_6h,
         high_24h, low_24h, range_24h,
         high_7d, low_7d, range_7d,
-        change_7d
+        change_7d,
+        volatility_5m, volatility_1h, volatility_6h, volatility_24h, volatility_7d
       ]
     );
     console.log('Price data saved successfully');
